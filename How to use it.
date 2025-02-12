@@ -1,0 +1,15 @@
+How to Use
+
+1. Install dependencies:
+
+pip install spacy pdfplumber python-docx
+python -m spacy download en_core_web_sm
+
+
+2. Place a resume.pdf or resume.docx in the project folder
+
+
+3. Run the script
+
+
+4. It will analyze the resume and score it against a job description
