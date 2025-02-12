@@ -1,0 +1,79 @@
+import spacy
+import pdfplumber
+import docx
+import re
+from collections import Counter
+
+# Load NLP model
+nlp = spacy.load("en_core_web_sm")
+
+# Function to extract text from PDF
+def extract_text_from_pdf(pdf_path):
+    text = ""
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text += page.extract_text() + "\n"
+    return text.strip()
+
+# Function to extract text from DOCX
+def extract_text_from_docx(docx_path):
+    doc = docx.Document(docx_path)
+    return "\n".join([para.text for para in doc.paragraphs])
+
+# Function to extract key details from resume
+def analyze_resume(text):
+    doc = nlp(text.lower())
+
+    # Extract name (Assumes first line is the name)
+    lines = text.split("\n")
+    name = lines[0] if len(lines) > 0 else "Unknown"
+
+    # Extract skills based on common keywords
+    common_skills = {"python", "java", "c++", "machine learning", "data analysis", "excel", "sql", "marketing"}
+    extracted_skills = {token.text for token in doc if token.text in common_skills}
+
+    # Extract years of experience (Simple regex for 'X years')
+    experience_match = re.search(r"(\d+)\s+years", text)
+    experience = int(experience_match.group(1)) if experience_match else 0
+
+    # Extract education based on keywords
+    education_keywords = ["bachelor", "master", "phd", "degree"]
+    education = [sent.text for sent in doc.sents if any(word in sent.text for word in education_keywords)]
+
+    return {
+        "name": name.title(),
+        "skills": list(extracted_skills),
+        "experience": experience,
+        "education": education
+    }
+
+# Function to score resume against job description
+def score_resume(resume_text, job_description):
+    resume_doc = nlp(resume_text.lower())
+    job_doc = nlp(job_description.lower())
+
+    # Count matching words
+    resume_words = Counter(token.text for token in resume_doc if token.is_alpha)
+    job_words = Counter(token.text for token in job_doc if token.is_alpha)
+
+    common_words = sum(min(resume_words[word], job_words[word]) for word in job_words)
+    total_words = sum(job_words.values())
+
+    score = (common_words / total_words) * 100 if total_words > 0 else 0
+    return round(score, 2)
+
+# Sample usage
+resume_path = "resume.pdf"  # Change to a real file
+job_desc = "Looking for a Python developer with experience in machine learning and SQL."
+
+# Extract text
+resume_text = extract_text_from_pdf(resume_path)  # Change function for DOCX
+resume_data = analyze_resume(resume_text)
+resume_score = score_resume(resume_text, job_desc)
+
+# Output results
+print(f"Candidate: {resume_data['name']}")
+print(f"Skills: {', '.join(resume_data['skills'])}")
+print(f"Experience: {resume_data['experience']} years")
+print(f"Education: {resume_data['education']}")
+print(f"Resume Match Score: {resume_score}%")
